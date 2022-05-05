@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"hash/fnv"
 	"log"
+	"os"
 	"time"
 
 	"github.com/google/go-github/v44/github"
+	"github.com/jackc/pgx"
 	"github.com/reugn/go-quartz/quartz"
 )
 
@@ -30,6 +33,17 @@ func (j *ReportJob) Execute() {
 			log.Println()
 		}
 	}
+
+	conn, err := pgx.Connect(pgx.ConnConfig{
+		User:     "operator",
+		Password: "operator",
+		Database: "operator",
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
 }
 
 func (j *ReportJob) Description() string {
