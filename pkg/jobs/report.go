@@ -36,15 +36,7 @@ func (j *ReportJob) Execute() {
 		}
 	}
 
-	rows, err := j.Connection.Query(`
-		SELECT Reader.email, Reader.github, max(Report.sent_time)
-		FROM Reader
-		LEFT JOIN Report
-			ON Reader.id = Report.reader_id
-		WHERE active
-		GROUP BY Reader.id
-		HAVING max(Report.sent_time) + Reader.report_interval <= now();
-	`)
+	rows, err := j.getReadersToNotify()
 	if err != nil {
 		log.Printf("Unable to retrieve readers: %v\n", err)
 		return
@@ -63,16 +55,7 @@ func (j *ReportJob) Execute() {
 		}
 
 		log.Printf("Sending email to %s\n", readerEmail)
-		a := outlook.LoginAuth(os.Getenv("OPERATOR_EMAIL"), os.Getenv("OPERATOR_PASSWORD"))
-		from := fmt.Sprintf("Caprine Operator <%s>", os.Getenv("OPERATOR_EMAIL"))
-		to := []string{readerEmail}
-		msg := []byte(plogonMsg)
-
-		e := email.NewEmail()
-		e.From = from
-		e.To = to
-		e.Text = msg
-		err = e.Send(os.Getenv("OPERATOR_SMTP_SERVER"), a)
+		err = sendEmail(readerEmail, plogonMsg)
 		if err != nil {
 			log.Printf("Unable to send mail: %v\n", err)
 			return
@@ -88,4 +71,31 @@ func (j *ReportJob) Key() int {
 	h := fnv.New32a()
 	h.Write([]byte(j.Description()))
 	return int(h.Sum32())
+}
+
+func (j *ReportJob) getReadersToNotify() (*pgx.Rows, error) {
+	return j.Connection.Query(`
+		SELECT Reader.email, Reader.github, max(Report.sent_time)
+		FROM Reader
+		LEFT JOIN Report
+			ON Reader.id = Report.reader_id
+		WHERE active
+		GROUP BY Reader.id
+		HAVING max(Report.sent_time) + Reader.report_interval <= now();
+	`)
+}
+
+func sendEmail(to string, body string) error {
+	auth := outlook.LoginAuth(os.Getenv("OPERATOR_EMAIL"), os.Getenv("OPERATOR_PASSWORD"))
+	e := email.NewEmail()
+	e.From = fmt.Sprintf("Caprine Operator <%s>", os.Getenv("OPERATOR_EMAIL"))
+	e.To = []string{to}
+	e.Text = []byte(body)
+
+	err := e.Send(os.Getenv("OPERATOR_SMTP_SERVER"), auth)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
