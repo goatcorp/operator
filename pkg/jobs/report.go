@@ -13,7 +13,9 @@ import (
 	"github.com/karashiiro/operator/pkg/outlook"
 )
 
-type ReportJob struct{}
+type ReportJob struct {
+	Connection *pgx.Conn
+}
 
 func (j *ReportJob) Execute() {
 	client := github.NewClient(nil)
@@ -33,17 +35,6 @@ func (j *ReportJob) Execute() {
 			plogonMsg += "\n"
 		}
 	}
-
-	conn, err := pgx.Connect(pgx.ConnConfig{
-		User:     "operator",
-		Password: "operator",
-		Database: "operator",
-	})
-	if err != nil {
-		log.Printf("Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close()
 
 	log.Println("Sending email")
 	a := outlook.LoginAuth(os.Getenv("OPERATOR_EMAIL"), os.Getenv("OPERATOR_PASSWORD"))
