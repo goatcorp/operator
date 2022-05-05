@@ -31,9 +31,9 @@ func main() {
 
 	sched := quartz.NewStdScheduler()
 	sched.Start()
-	trigger := quartz.NewSimpleTrigger(time.Second)
+	trigger := quartz.NewRunOnceTrigger(time.Second)
 	job := jobs.ReportJob{Connection: conn}
 	sched.ScheduleJob(&job, trigger)
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 	sched.Stop()
 }
