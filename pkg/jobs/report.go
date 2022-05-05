@@ -15,10 +15,11 @@ import (
 )
 
 type ReportJob struct {
-	Connection *pgx.Conn
+	Pool *pgx.ConnPool
 }
 
 func (j *ReportJob) Execute() {
+	// Retrieve all open pull requests
 	client := github.NewClient(nil)
 	plogons, _, err := client.PullRequests.List(context.Background(), "goatcorp", "DalamudPlugins", &github.PullRequestListOptions{
 		State: "open",
@@ -36,30 +37,58 @@ func (j *ReportJob) Execute() {
 		}
 	}
 
-	rows, err := j.getReadersToNotify()
+	// Retrieve all of the active report readers
+	readerConn, err := j.Pool.Acquire()
+	if err != nil {
+		log.Printf("Failed to acquire database connection: %v\n", err)
+		return
+	}
+	defer readerConn.Close()
+
+	rows, err := getReadersToNotify(readerConn)
 	if err != nil {
 		log.Printf("Unable to retrieve readers: %v\n", err)
 		return
 	}
 	defer rows.Close()
 
+	// Open a connection to handle inserting records into the report table
+	// while we're iterating the results of the reader query
+	reportConn, err := j.Pool.Acquire()
+	if err != nil {
+		log.Printf("Failed to acquire database connection: %v\n", err)
+		return
+	}
+	defer reportConn.Close()
+
 	for rows.Next() {
+		var readerId int
 		var readerEmail string
 		var readerGithub string
 		var readerLastSent time.Time
-		rows.Scan(&readerEmail, &readerGithub, &readerLastSent)
-
-		if rows.Err() != nil {
-			log.Printf("Error occurred while processing readers: %v\n", rows.Err())
-			return
+		err := rows.Scan(&readerId, &readerEmail, &readerGithub, &readerLastSent)
+		if err != nil {
+			log.Printf("Unable to scan reader row: %v\n", err)
+			continue
 		}
 
 		log.Printf("Sending email to %s\n", readerEmail)
 		err = sendEmail(readerEmail, plogonMsg)
 		if err != nil {
 			log.Printf("Unable to send mail: %v\n", err)
-			return
+			continue
 		}
+
+		_, err = storeReportLog(reportConn, readerId)
+		if err != nil {
+			log.Printf("Unable to store report log: %v\n", err)
+			continue
+		}
+	}
+
+	if rows.Err() != nil {
+		log.Printf("Error occurred while processing readers: %v\n", rows.Err())
+		return
 	}
 }
 
@@ -73,9 +102,9 @@ func (j *ReportJob) Key() int {
 	return int(h.Sum32())
 }
 
-func (j *ReportJob) getReadersToNotify() (*pgx.Rows, error) {
-	return j.Connection.Query(`
-		SELECT Reader.email, Reader.github, max(Report.sent_time)
+func getReadersToNotify(conn *pgx.Conn) (*pgx.Rows, error) {
+	return conn.Query(`
+		SELECT Reader.id, Reader.email, Reader.github, max(Report.sent_time)
 		FROM Reader
 		LEFT JOIN Report
 			ON Reader.id = Report.reader_id
@@ -83,6 +112,15 @@ func (j *ReportJob) getReadersToNotify() (*pgx.Rows, error) {
 		GROUP BY Reader.id
 		HAVING max(Report.sent_time) + Reader.report_interval <= now();
 	`)
+}
+
+func storeReportLog(conn *pgx.Conn, readerId int) (int64, error) {
+	tag, err := conn.Exec(`
+		INSERT INTO Report (sent_time, reader_id)
+		VALUES
+			(now(), $1);
+	`, readerId)
+	return tag.RowsAffected(), err
 }
 
 func sendEmail(to string, body string) error {
