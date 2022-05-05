@@ -1,17 +1,35 @@
 package main
 
 import (
+	"context"
 	"hash/fnv"
 	"log"
 	"time"
 
+	"github.com/google/go-github/v44/github"
 	"github.com/reugn/go-quartz/quartz"
 )
 
 type ReportJob struct{}
 
 func (j *ReportJob) Execute() {
-	log.Println("hit")
+	client := github.NewClient(nil)
+	repos, _, err := client.PullRequests.List(context.Background(), "goatcorp", "DalamudPlugins", &github.PullRequestListOptions{
+		State: "open",
+	})
+
+	if err != nil {
+		log.Println("Request error")
+		return
+	}
+
+	for _, repo := range repos {
+		if repo.Title != nil {
+			log.Println(*repo.Title)
+		} else {
+			log.Println()
+		}
+	}
 }
 
 func (j *ReportJob) Description() string {
@@ -30,6 +48,6 @@ func main() {
 	trigger := quartz.NewSimpleTrigger(time.Second)
 	job := ReportJob{}
 	sched.ScheduleJob(&job, trigger)
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 	sched.Stop()
 }
