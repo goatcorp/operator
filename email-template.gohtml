@@ -1,0 +1,18 @@
+<h1>Dalamud Plugin Pull Requests</h1>
+
+<table>
+<thead>
+    <tr>
+        <th>Title</th>
+        <th>Submitter</th>
+    </tr>
+</thead>
+<tbody>
+    {{range .Plogons}}
+    <tr>
+        <td><a href="{{.URL}}">{{.Title}}</a></td>
+        <td>{{.Submitter}}</td>
+    </tr>
+    {{end}}
+</tbody>
+</table>

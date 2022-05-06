@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"hash/fnv"
@@ -12,6 +13,7 @@ import (
 	"github.com/jackc/pgx"
 	"github.com/jordan-wright/email"
 	"github.com/karashiiro/operator/pkg/outlook"
+	"github.com/karashiiro/operator/pkg/pretty"
 )
 
 type ReportJob struct {
@@ -29,11 +31,13 @@ func (j *ReportJob) Execute() {
 		return
 	}
 
-	plogonMsg := ""
-	for _, plogon := range plogons {
-		if plogon.Title != nil {
-			plogonMsg += *plogon.Title
-			plogonMsg += "\n"
+	// Make the plogons :dognosepretty:
+	plogonsPretty := make([]*pretty.Plogon, len(plogons))
+	for i, plogon := range plogons {
+		plogonsPretty[i] = &pretty.Plogon{
+			Title:     plogon.GetTitle(),
+			URL:       plogon.GetURL(),
+			Submitter: plogon.User.GetLogin(),
 		}
 	}
 
@@ -72,8 +76,15 @@ func (j *ReportJob) Execute() {
 			continue
 		}
 
+		var readerMessage bytes.Buffer
+		err = pretty.BuildTemplate(&readerMessage, plogonsPretty)
+		if err != nil {
+			log.Printf("Failed to build template: %v\n", err)
+			continue
+		}
+
 		log.Printf("Sending email to %s\n", readerEmail)
-		err = sendEmail(readerEmail, plogonMsg)
+		err = sendEmail(readerEmail, "Dalamud Plugin Pull Requests", readerMessage.String())
 		if err != nil {
 			log.Printf("Unable to send mail: %v\n", err)
 			continue
@@ -123,12 +134,13 @@ func storeReportLog(conn *pgx.Conn, readerId int) (int64, error) {
 	return tag.RowsAffected(), err
 }
 
-func sendEmail(to string, body string) error {
+func sendEmail(to, subject, body string) error {
 	auth := outlook.LoginAuth(os.Getenv("OPERATOR_EMAIL"), os.Getenv("OPERATOR_PASSWORD"))
 	e := email.NewEmail()
-	e.From = fmt.Sprintf("Caprine Operator <%s>", os.Getenv("OPERATOR_EMAIL"))
 	e.To = []string{to}
-	e.Text = []byte(body)
+	e.From = fmt.Sprintf("Caprine Operator <%s>", os.Getenv("OPERATOR_EMAIL"))
+	e.Subject = subject
+	e.HTML = []byte(body)
 
 	err := e.Send(os.Getenv("OPERATOR_SMTP_SERVER"), auth)
 	if err != nil {

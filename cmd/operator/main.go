@@ -52,6 +52,6 @@ func main() {
 	trigger := quartz.NewRunOnceTrigger(time.Second)
 	job := jobs.ReportJob{Pool: pool}
 	sched.ScheduleJob(&job, trigger)
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	sched.Stop()
 }
