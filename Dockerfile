@@ -4,7 +4,7 @@ RUN apk add --no-cache git
 WORKDIR /go/src/app
 COPY . .
 RUN go get -d -v ./...
-RUN go build -o /go/bin/app -v ./...
+RUN go build -o /go/bin/app -v ./cmd/operator
 
 #final stage
 FROM alpine:latest
