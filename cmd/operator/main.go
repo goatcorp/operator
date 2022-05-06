@@ -30,12 +30,20 @@ func applyMigrations(pool *pgx.ConnPool) {
 
 func main() {
 	// Create the database connection pool
+	config := &pgx.ConnConfig{
+		User:     "operator",
+		Password: "operator",
+		Database: "operator",
+	}
+
+	postgresHost := os.Getenv("OPERATOR_POSTGRES")
+	if postgresHost != "" {
+		log.Printf("Using PostgreSQL host %s\n", postgresHost)
+		config.Host = postgresHost
+	}
+
 	pool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
-		ConnConfig: pgx.ConnConfig{
-			User:     "operator",
-			Password: "operator",
-			Database: "operator",
-		},
+		ConnConfig:     *config,
 		MaxConnections: 4,
 		AfterConnect: func(c *pgx.Conn) error {
 			log.Println("Database connection opened")
@@ -56,7 +64,7 @@ func main() {
 	sched.Start()
 
 	// Schedule the report job
-	trigger := quartz.NewRunOnceTrigger(time.Second)
+	trigger := quartz.NewSimpleTrigger(time.Minute)
 	job := jobs.ReportJob{Pool: pool}
 	sched.ScheduleJob(&job, trigger)
 
