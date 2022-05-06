@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx"
@@ -19,7 +21,7 @@ func applyMigrations(pool *pgx.ConnPool) {
 	}
 	defer conn.Close()
 
-	err = db.ApplyMigrations(conn, "../../sql")
+	err = db.ApplyMigrations(conn, "./sql")
 	if err != nil {
 		log.Printf("Failed to apply migrations: %v\n", err)
 		os.Exit(1)
@@ -27,6 +29,7 @@ func applyMigrations(pool *pgx.ConnPool) {
 }
 
 func main() {
+	// Create the database connection pool
 	pool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
 		ConnConfig: pgx.ConnConfig{
 			User:     "operator",
@@ -45,13 +48,23 @@ func main() {
 	}
 	defer pool.Close()
 
+	// Apply the database migrations
 	applyMigrations(pool)
 
+	// Start the job scheduler
 	sched := quartz.NewStdScheduler()
 	sched.Start()
+
+	// Schedule the report job
 	trigger := quartz.NewRunOnceTrigger(time.Second)
 	job := jobs.ReportJob{Pool: pool}
 	sched.ScheduleJob(&job, trigger)
-	time.Sleep(10 * time.Second)
+
+	// Block until SIGINT or SIGTERM is received
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	<-sigs
+
+	// Shutdown
 	sched.Stop()
 }
