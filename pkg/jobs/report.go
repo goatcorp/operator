@@ -44,7 +44,7 @@ func (j *ReportJob) Execute() {
 
 		plogonsPretty[i] = &pretty.Plogon{
 			Title:     plogon.GetTitle(),
-			URL:       plogon.GetURL(),
+			URL:       plogon.GetHTMLURL(),
 			Labels:    labels,
 			Submitter: plogon.User.GetLogin(),
 		}
