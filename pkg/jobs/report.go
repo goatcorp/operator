@@ -78,7 +78,7 @@ func (j *ReportJob) Execute() {
 		var readerId int
 		var readerEmail string
 		var readerGithub string
-		var readerLastSent time.Time
+		var readerLastSent *time.Time
 		err := rows.Scan(&readerId, &readerEmail, &readerGithub, &readerLastSent)
 		if err != nil {
 			log.Printf("Unable to scan reader row: %v\n", err)
@@ -130,7 +130,8 @@ func getReadersToNotify(conn *pgx.Conn) (*pgx.Rows, error) {
 			ON Reader.id = Report.reader_id
 		WHERE active
 		GROUP BY Reader.id
-		HAVING max(Report.sent_time) + Reader.report_interval <= now();
+		HAVING count(Report.reader_id) = 0
+			OR max(Report.sent_time) + Reader.report_interval <= now();
 	`)
 }
 
