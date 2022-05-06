@@ -5,9 +5,15 @@ import (
 	"io"
 )
 
+type PlogonLabel struct {
+	Name  string
+	Color string
+}
+
 type Plogon struct {
 	Title     string
 	URL       string
+	Labels    []*PlogonLabel
 	Submitter string
 }
 

@@ -5,6 +5,7 @@
     <tr>
         <th>Title</th>
         <th>Submitter</th>
+        <th>Labels</th>
     </tr>
 </thead>
 <tbody>
@@ -12,6 +13,11 @@
     <tr>
         <td><a href="{{.URL}}">{{.Title}}</a></td>
         <td>{{.Submitter}}</td>
+        <td>
+        {{range .Labels}}
+            <span style="color: {{.Color}};">{{.Name}}&nbsp;</span>
+        {{end}}
+        </td>
     </tr>
     {{end}}
 </tbody>

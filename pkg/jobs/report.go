@@ -34,9 +34,18 @@ func (j *ReportJob) Execute() {
 	// Make the plogons :dognosepretty:
 	plogonsPretty := make([]*pretty.Plogon, len(plogons))
 	for i, plogon := range plogons {
+		labels := make([]*pretty.PlogonLabel, len(plogon.Labels))
+		for j, label := range plogon.Labels {
+			labels[j] = &pretty.PlogonLabel{
+				Name:  label.GetName(),
+				Color: label.GetColor(),
+			}
+		}
+
 		plogonsPretty[i] = &pretty.Plogon{
 			Title:     plogon.GetTitle(),
 			URL:       plogon.GetURL(),
+			Labels:    labels,
 			Submitter: plogon.User.GetLogin(),
 		}
 	}
