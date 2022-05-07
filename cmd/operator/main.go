@@ -64,7 +64,7 @@ func main() {
 	sched.Start()
 
 	// Schedule the report job
-	trigger := quartz.NewSimpleTrigger(time.Minute)
+	trigger := quartz.NewSimpleTrigger(2 * time.Minute)
 	job := jobs.ReportJob{Pool: pool}
 	sched.ScheduleJob(&job, trigger)
 
