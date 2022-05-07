@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/jprobinson/eazye"
+	"github.com/karashiiro/operator/pkg/html"
 	"github.com/karashiiro/operator/pkg/outlook"
 )
 
@@ -81,7 +82,7 @@ func saveSubscribers(conn *pgx.Conn, readers []*newReader) {
 }
 
 func buildSubscribeTemplate(w io.Writer, interval time.Duration) error {
-	t, err := template.ParseFiles("./templates/confirm-subscribe.gohtml")
+	t, err := template.ParseFS(html.Files, "confirm-subscribe.gohtml")
 	if err != nil {
 		return err
 	}

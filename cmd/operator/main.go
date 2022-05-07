@@ -11,6 +11,7 @@ import (
 	"github.com/karashiiro/operator/pkg/db"
 	"github.com/karashiiro/operator/pkg/inbox"
 	"github.com/karashiiro/operator/pkg/reports"
+	"github.com/karashiiro/operator/pkg/sql"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/reugn/go-quartz/quartz"
 )
@@ -23,7 +24,7 @@ func applyMigrations(pool *pgx.ConnPool) {
 	}
 	defer pool.Release(conn)
 
-	err = db.ApplyMigrations(conn, "./sql")
+	err = db.ApplyMigrations(conn, sql.Files)
 	if err != nil {
 		log.Printf("Failed to apply migrations: %v\n", err)
 		os.Exit(1)

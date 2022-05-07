@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/jackc/pgx"
+	"github.com/karashiiro/operator/pkg/html"
 	"github.com/karashiiro/operator/pkg/outlook"
 )
 
@@ -50,7 +51,7 @@ func deleteReader(conn *pgx.Conn, addr string) (int64, error) {
 }
 
 func buildUnsubscribeTemplate(w io.Writer) error {
-	t, err := template.ParseFiles("./templates/confirm-unsubscribe.gohtml")
+	t, err := template.ParseFS(html.Files, "confirm-unsubscribe.gohtml")
 	if err != nil {
 		return err
 	}

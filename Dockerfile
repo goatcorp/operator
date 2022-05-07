@@ -10,7 +10,5 @@ RUN go build -o /go/bin/app -v ./cmd/operator
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 COPY --from=builder /go/bin/app /app
-COPY ./sql ./sql
-COPY ./templates ./templates
 ENTRYPOINT /app
 LABEL Name=operator Version=1.0.0

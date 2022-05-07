@@ -4,6 +4,8 @@ import (
 	"html/template"
 	"io"
 	"time"
+
+	"github.com/karashiiro/operator/pkg/html"
 )
 
 type PlogonLabel struct {
@@ -24,7 +26,7 @@ func BuildTemplate(w io.Writer, plogons []*Plogon) error {
 		"formatTime": func(t time.Time) string {
 			return t.Format(time.RFC822)
 		},
-	}).ParseFiles("./templates/report.gohtml")
+	}).ParseFS(html.Files, "report.gohtml")
 	if err != nil {
 		return err
 	}

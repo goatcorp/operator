@@ -1,10 +1,8 @@
 package db
 
 import (
-	"io/ioutil"
+	"io/fs"
 	"log"
-	"os"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,22 +10,19 @@ import (
 	"github.com/jackc/pgx"
 )
 
-func ApplyMigrations(conn *pgx.Conn, dir string) error {
-	files, err := os.ReadDir(dir)
+var migrationsPattern = regexp.MustCompile(`(?i)(?P<n>\d{3})-.*\.sql`)
+
+func ApplyMigrations(conn *pgx.Conn, fileSystem fs.FS) error {
+	files, err := fs.Glob(fileSystem, "*")
 	if err != nil {
 		return err
 	}
 
 	// Find and order all of the migrations
-	migrationsPattern := regexp.MustCompile(`(?P<n>\d{3})-.*\.sql`)
 	migrationsMax := uint64(0)
 	migrations := make([]string, 0) // Indexed array of migrations
 	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		nameLower := strings.ToLower(file.Name())
+		nameLower := strings.ToLower(file)
 		matches := migrationsPattern.FindStringSubmatch(nameLower)
 		if len(matches) == 0 {
 			continue
@@ -49,18 +44,13 @@ func ApplyMigrations(conn *pgx.Conn, dir string) error {
 			migrations = migrationsNew
 		}
 
-		migrations[migrationNumber] = path.Join(dir, file.Name())
+		migrations[migrationNumber] = file
 	}
 
 	for _, migration := range migrations {
 		log.Printf("SQL: Applying migration %s\n", migration)
 
-		data, err := os.Open(migration)
-		if err != nil {
-			return err
-		}
-
-		statement, err := ioutil.ReadAll(data)
+		statement, err := fs.ReadFile(fileSystem, migration)
 		if err != nil {
 			return err
 		}
