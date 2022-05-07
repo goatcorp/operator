@@ -3,15 +3,12 @@ package jobs
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"hash/fnv"
 	"log"
-	"os"
 	"time"
 
 	"github.com/google/go-github/v44/github"
 	"github.com/jackc/pgx"
-	"github.com/jordan-wright/email"
 	"github.com/karashiiro/operator/pkg/outlook"
 	"github.com/karashiiro/operator/pkg/pretty"
 )
@@ -133,7 +130,7 @@ func (j *ReportJob) Execute() {
 		}
 
 		log.Printf("Sending email to %s\n", readerEmail)
-		err = sendEmail(readerEmail, "Updated Dalamud Plugin Pull Requests", readerMessage.String())
+		err = outlook.SendEmail(readerEmail, "Updated Dalamud Plugin Pull Requests", readerMessage.String())
 		if err != nil {
 			log.Printf("Unable to send mail: %v\n", err)
 			continue
@@ -191,20 +188,4 @@ func storeReportLogSkipped(conn *pgx.Conn, readerId int) (int64, error) {
 			(now(), $1, TRUE);
 	`, readerId)
 	return tag.RowsAffected(), err
-}
-
-func sendEmail(to, subject, body string) error {
-	auth := outlook.LoginAuth(os.Getenv("OPERATOR_EMAIL"), os.Getenv("OPERATOR_PASSWORD"))
-	e := email.NewEmail()
-	e.To = []string{to}
-	e.From = fmt.Sprintf("Caprine Operator <%s>", os.Getenv("OPERATOR_EMAIL"))
-	e.Subject = subject
-	e.HTML = []byte(body)
-
-	err := e.Send(os.Getenv("OPERATOR_SMTP_SERVER"), auth)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

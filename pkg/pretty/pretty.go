@@ -20,7 +20,7 @@ type Plogon struct {
 }
 
 func BuildTemplate(w io.Writer, plogons []*Plogon) error {
-	t, err := template.ParseFiles("email-template.gohtml")
+	t, err := template.ParseFiles("./templates/email-template.gohtml")
 	if err != nil {
 		return err
 	}

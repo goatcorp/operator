@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx"
 	"github.com/karashiiro/operator/pkg/db"
 	"github.com/karashiiro/operator/pkg/jobs"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/reugn/go-quartz/quartz"
 )
 
@@ -64,9 +65,17 @@ func main() {
 	sched.Start()
 
 	// Schedule the report job
-	trigger := quartz.NewSimpleTrigger(2 * time.Minute)
-	job := jobs.ReportJob{Pool: pool}
-	sched.ScheduleJob(&job, trigger)
+	reportTrigger := quartz.NewSimpleTrigger(2 * time.Minute)
+	reportJob := jobs.ReportJob{Pool: pool}
+	sched.ScheduleJob(&reportJob, reportTrigger)
+
+	// Schedule the email-checking job
+	receiveTrigger := quartz.NewSimpleTrigger(time.Minute)
+	receiveJob := jobs.ReceiveEmailsJob{
+		Pool:   pool,
+		Policy: bluemonday.UGCPolicy(),
+	}
+	sched.ScheduleJob(&receiveJob, receiveTrigger)
 
 	// Block until SIGINT or SIGTERM is received
 	sigs := make(chan os.Signal, 1)

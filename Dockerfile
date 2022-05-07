@@ -11,6 +11,6 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 COPY --from=builder /go/bin/app /app
 COPY ./sql ./sql
-COPY email-template.gohtml .
+COPY ./templates ./templates
 ENTRYPOINT /app
 LABEL Name=operator Version=1.0.0
