@@ -47,9 +47,11 @@ func (j *ReceiveEmailsJob) Execute() {
 	}
 
 	newReaders := make([]*newReader, 0)
+	unsubscribers := make([]string, 0)
 	for _, email := range emails {
 		// Parse out the email information
 		subjectCleaned := strings.TrimSpace(email.Subject)
+
 		if strings.HasPrefix(subjectCleaned, "[op] subscribe") {
 			r, err := j.subscribe(email)
 			if err != nil {
@@ -57,37 +59,30 @@ func (j *ReceiveEmailsJob) Execute() {
 			}
 
 			newReaders = append(newReaders, r)
+		} else if strings.HasPrefix(subjectCleaned, "[op] unsubscribe") {
+			unsubscribers = append(unsubscribers, email.From.Address)
 		}
 	}
 
+	if len(newReaders) == 0 && len(unsubscribers) == 0 {
+		return
+	}
+
+	readerConn, err := j.Pool.Acquire()
+	if err != nil {
+		log.Printf("Failed to acquire database connection: %v\n", err)
+		return
+	}
+	defer j.Pool.Release(readerConn)
+
 	// Save new readers to the database
 	if len(newReaders) > 0 {
-		readerConn, err := j.Pool.Acquire()
-		if err != nil {
-			log.Printf("Failed to acquire database connection: %v\n", err)
-			return
-		}
-		defer j.Pool.Release(readerConn)
+		saveSubscribers(readerConn, newReaders)
+	}
 
-		for _, r := range newReaders {
-			_, err := storeReader(readerConn, r)
-			if err != nil {
-				log.Printf("Failed to add new reader: %v\n", err)
-			}
-
-			log.Printf("Sending subscription confirmation email to %s\n", r.Email)
-
-			var subscribeMessage bytes.Buffer
-			buildSubscriptionTemplate(&subscribeMessage, r.ReportInterval)
-
-			err = outlook.SendEmail(r.Email, "Subscription confirmed", subscribeMessage.String())
-			if err != nil {
-				log.Printf("Unable to send mail: %v\n", err)
-				continue
-			}
-
-			log.Printf("Added reader %s\n", r.Email)
-		}
+	// Delete unsubscribing readers from the database
+	if len(unsubscribers) > 0 {
+		deleteUnsubscribers(readerConn, unsubscribers)
 	}
 }
 
@@ -137,7 +132,33 @@ func (j *ReceiveEmailsJob) subscribe(email eazye.Email) (*newReader, error) {
 	return r, nil
 }
 
-func buildSubscriptionTemplate(w io.Writer, interval time.Duration) error {
+func saveSubscribers(conn *pgx.Conn, readers []*newReader) {
+	for _, r := range readers {
+		_, err := storeReader(conn, r)
+		if err != nil {
+			log.Printf("Failed to add new reader: %v\n", err)
+			continue
+		}
+
+		log.Printf("Sending subscription confirmation email to %s\n", r.Email)
+
+		var subscribeMessage bytes.Buffer
+		err = buildSubscribeTemplate(&subscribeMessage, r.ReportInterval)
+		if err != nil {
+			log.Printf("Failed to build subscribe template: %v\n", err)
+		}
+
+		err = outlook.SendEmail(r.Email, "Subscription confirmed", subscribeMessage.String())
+		if err != nil {
+			log.Printf("Unable to send mail: %v\n", err)
+			continue
+		}
+
+		log.Printf("Added reader %s\n", r.Email)
+	}
+}
+
+func buildSubscribeTemplate(w io.Writer, interval time.Duration) error {
 	t, err := template.ParseFiles("./templates/confirm-subscribe.gohtml")
 	if err != nil {
 		return err
@@ -161,5 +182,62 @@ func storeReader(conn *pgx.Conn, r *newReader) (int64, error) {
 		VALUES
 			($1, $2, $3, TRUE)
 	`, r.Email, r.GitHub, r.ReportInterval)
-	return t.RowsAffected(), err
+	if err != nil {
+		return 0, err
+	}
+
+	return t.RowsAffected(), nil
+}
+
+func deleteUnsubscribers(conn *pgx.Conn, unsubscribers []string) {
+	for _, us := range unsubscribers {
+		_, err := deleteReader(conn, us)
+		if err != nil {
+			log.Printf("Failed to delete reader: %v\n", err)
+			continue
+		}
+
+		var unsubscribeMessage bytes.Buffer
+		err = buildUnsubscribeTemplate(&unsubscribeMessage)
+		if err != nil {
+			log.Printf("Failed to build unsubscribe template: %v\n", err)
+			continue
+		}
+
+		err = outlook.SendEmail(us, "Unsubscribe confirmed", unsubscribeMessage.String())
+		if err != nil {
+			log.Printf("Unable to send mail: %v\n", err)
+			continue
+		}
+
+		log.Printf("Deleted reader %s\n", us)
+	}
+}
+
+func deleteReader(conn *pgx.Conn, addr string) (int64, error) {
+	t1, err := conn.Exec("DELETE FROM Report WHERE reader_id = (SELECT id FROM Reader WHERE email = $1);", addr)
+	if err != nil {
+		return 0, err
+	}
+
+	t2, err := conn.Exec("DELETE FROM Reader WHERE email = $1;", addr)
+	if err != nil {
+		return t1.RowsAffected(), err
+	}
+
+	return t1.RowsAffected() + t2.RowsAffected(), nil
+}
+
+func buildUnsubscribeTemplate(w io.Writer) error {
+	t, err := template.ParseFiles("./templates/confirm-unsubscribe.gohtml")
+	if err != nil {
+		return err
+	}
+
+	err = t.Execute(w, struct{}{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

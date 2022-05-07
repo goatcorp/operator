@@ -178,7 +178,11 @@ func storeReportLog(conn *pgx.Conn, readerId int) (int64, error) {
 		VALUES
 			(now(), $1, FALSE);
 	`, readerId)
-	return tag.RowsAffected(), err
+	if err != nil {
+		return 0, err
+	}
+
+	return tag.RowsAffected(), nil
 }
 
 func storeReportLogSkipped(conn *pgx.Conn, readerId int) (int64, error) {
@@ -187,5 +191,9 @@ func storeReportLogSkipped(conn *pgx.Conn, readerId int) (int64, error) {
 		VALUES
 			(now(), $1, TRUE);
 	`, readerId)
-	return tag.RowsAffected(), err
+	if err != nil {
+		return 0, err
+	}
+
+	return tag.RowsAffected(), nil
 }
