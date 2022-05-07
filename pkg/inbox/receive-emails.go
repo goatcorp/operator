@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx"
 	"github.com/jprobinson/eazye"
@@ -15,12 +14,6 @@ import (
 type ReceiveEmailsJob struct {
 	Pool   *pgx.ConnPool
 	Policy *bluemonday.Policy
-}
-
-type newReader struct {
-	Email          string
-	GitHub         string
-	ReportInterval time.Duration
 }
 
 func (j *ReceiveEmailsJob) Execute() {
@@ -37,25 +30,41 @@ func (j *ReceiveEmailsJob) Execute() {
 		log.Printf("Failed to get incoming emails: %v\n", err)
 	}
 
-	newReaders := make([]*newReader, 0)
+	newReaders := make([]*ReaderInfo, 0)
+	updatedReaders := make([]*ReaderInfo, 0)
 	unsubscribers := make([]string, 0)
 	for _, email := range emails {
 		// Parse out the email information
 		subjectCleaned := strings.TrimSpace(email.Subject)
 
 		if strings.HasPrefix(subjectCleaned, "[op] subscribe") {
-			r, err := j.subscribe(email)
+			r, err := ParseBody(email, *j.Policy)
 			if err != nil {
 				log.Printf("Failed to parse subscription email: %v\n", err)
+				continue
+			}
+
+			// Validate reporting interval
+			if r.ReportInterval.Minutes() <= 0 {
+				log.Println("User attempted to set a reporting interval of 0 or less")
+				continue
 			}
 
 			newReaders = append(newReaders, r)
+		} else if strings.HasPrefix(subjectCleaned, "[op] update") {
+			r, err := ParseBody(email, *j.Policy)
+			if err != nil {
+				log.Printf("Failed to parse update email: %v\n", err)
+				continue
+			}
+
+			updatedReaders = append(updatedReaders, r)
 		} else if strings.HasPrefix(subjectCleaned, "[op] unsubscribe") {
 			unsubscribers = append(unsubscribers, email.From.Address)
 		}
 	}
 
-	if len(newReaders) == 0 && len(unsubscribers) == 0 {
+	if len(newReaders) == 0 && len(updatedReaders) == 0 && len(unsubscribers) == 0 {
 		return
 	}
 
@@ -69,6 +78,11 @@ func (j *ReceiveEmailsJob) Execute() {
 	// Save new readers to the database
 	if len(newReaders) > 0 {
 		saveSubscribers(readerConn, newReaders)
+	}
+
+	// Persist reader updates to the database
+	if len(updatedReaders) > 0 {
+		saveUpdatedInfo(readerConn, updatedReaders)
 	}
 
 	// Delete unsubscribing readers from the database

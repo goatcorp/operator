@@ -72,7 +72,7 @@ func main() {
 	sched.ScheduleJob(&reportJob, reportTrigger)
 
 	// Schedule the email-checking job
-	receiveTrigger := quartz.NewSimpleTrigger(time.Minute)
+	receiveTrigger := quartz.NewSimpleTrigger(5 * time.Second)
 	receiveJob := inbox.ReceiveEmailsJob{
 		Pool:   pool,
 		Policy: bluemonday.UGCPolicy(),

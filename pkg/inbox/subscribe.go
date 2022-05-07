@@ -2,60 +2,17 @@ package inbox
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"log"
-	"regexp"
-	"strings"
 	"text/template"
 	"time"
 
 	"github.com/jackc/pgx"
-	"github.com/jprobinson/eazye"
 	"github.com/karashiiro/operator/pkg/html"
 	"github.com/karashiiro/operator/pkg/outlook"
 )
 
-var githubPattern = regexp.MustCompile(`(?i)github:\s*(?P<github>\S*)`)
-var intervalPattern = regexp.MustCompile(`(?i)interval:\s*(?P<interval>\S*)`)
-
-func (j *ReceiveEmailsJob) subscribe(email eazye.Email) (*newReader, error) {
-	r := &newReader{
-		Email: j.Policy.Sanitize(email.From.Address),
-	}
-
-	bodyLines := strings.Split(string(email.Text), "\n")
-	for _, line := range bodyLines {
-		lineCleaned := strings.TrimSpace(line)
-
-		// Parse their optionally-provided GitHub username
-		githubMatches := githubPattern.FindStringSubmatch(lineCleaned)
-		if len(githubMatches) != 0 {
-			github := githubMatches[githubPattern.SubexpIndex("github")]
-			r.GitHub = j.Policy.Sanitize(github)
-			continue
-		}
-
-		// Parse their requested reporting interval
-		intervalMatches := intervalPattern.FindStringSubmatch(lineCleaned)
-		if len(intervalMatches) != 0 {
-			interval, err := time.ParseDuration(intervalMatches[intervalPattern.SubexpIndex("interval")])
-			if err == nil {
-				r.ReportInterval = interval
-				continue
-			}
-		}
-	}
-
-	// Validate reporting interval
-	if r.ReportInterval.Minutes() <= 0 {
-		return nil, fmt.Errorf("user attempted to set a reporting interval of 0 or less")
-	}
-
-	return r, nil
-}
-
-func saveSubscribers(conn *pgx.Conn, readers []*newReader) {
+func saveSubscribers(conn *pgx.Conn, readers []*ReaderInfo) {
 	for _, r := range readers {
 		_, err := storeReader(conn, r)
 		if err != nil {
@@ -99,7 +56,7 @@ func buildSubscribeTemplate(w io.Writer, interval time.Duration) error {
 	return nil
 }
 
-func storeReader(conn *pgx.Conn, r *newReader) (int64, error) {
+func storeReader(conn *pgx.Conn, r *ReaderInfo) (int64, error) {
 	t, err := conn.Exec(`
 		INSERT INTO Reader (email, github, report_interval, active)
 		VALUES
