@@ -3,6 +3,7 @@ package pretty
 import (
 	"html/template"
 	"io"
+	"time"
 )
 
 type PlogonLabel struct {
@@ -15,6 +16,7 @@ type Plogon struct {
 	URL       string
 	Labels    []*PlogonLabel
 	Submitter string
+	Updated   time.Time
 }
 
 func BuildTemplate(w io.Writer, plogons []*Plogon) error {

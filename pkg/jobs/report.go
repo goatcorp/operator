@@ -47,6 +47,7 @@ func (j *ReportJob) Execute() {
 			URL:       plogon.GetHTMLURL(),
 			Labels:    labels,
 			Submitter: plogon.User.GetLogin(),
+			Updated:   plogon.GetUpdatedAt(),
 		}
 	}
 
@@ -75,6 +76,7 @@ func (j *ReportJob) Execute() {
 	defer reportConn.Close()
 
 	for rows.Next() {
+		// Read the next row from the database
 		var readerId int
 		var readerEmail string
 		var readerGithub string
@@ -85,15 +87,53 @@ func (j *ReportJob) Execute() {
 			continue
 		}
 
+		// Filter the updates since this reader's last email
+		ref := time.Time{}
+		if readerLastSent != nil {
+			ref = *readerLastSent
+		}
+
+		// Figure out the size of the array we need so we can allocate
+		// it all at once
+		sinceLastEmail := 0
+		for _, p := range plogonsPretty {
+			if ref.IsZero() || p.Updated.After(ref) {
+				sinceLastEmail++
+			}
+		}
+
+		// Filter the stuff
+		plogonsFiltered := make([]*pretty.Plogon, sinceLastEmail)
+		plogonsFilteredIdx := 0
+		for _, p := range plogonsPretty {
+			if ref.IsZero() || p.Updated.After(ref) {
+				plogonsFiltered[plogonsFilteredIdx] = p
+				plogonsFilteredIdx++
+			}
+		}
+
+		// If the result has no data, don't send an email for this interval
+		if plogonsFilteredIdx == 0 {
+			log.Println("Reader has no updates, skipping this interval")
+
+			_, err := storeReportLogSkipped(reportConn, readerId)
+			if err != nil {
+				log.Printf("Unable to store report log: %v\n", err)
+			}
+
+			continue
+		}
+
+		// Send the email
 		var readerMessage bytes.Buffer
-		err = pretty.BuildTemplate(&readerMessage, plogonsPretty)
+		err = pretty.BuildTemplate(&readerMessage, plogonsFiltered)
 		if err != nil {
 			log.Printf("Failed to build template: %v\n", err)
 			continue
 		}
 
 		log.Printf("Sending email to %s\n", readerEmail)
-		err = sendEmail(readerEmail, "Dalamud Plugin Pull Requests", readerMessage.String())
+		err = sendEmail(readerEmail, "Updated Dalamud Plugin Pull Requests", readerMessage.String())
 		if err != nil {
 			log.Printf("Unable to send mail: %v\n", err)
 			continue
@@ -137,9 +177,18 @@ func getReadersToNotify(conn *pgx.Conn) (*pgx.Rows, error) {
 
 func storeReportLog(conn *pgx.Conn, readerId int) (int64, error) {
 	tag, err := conn.Exec(`
-		INSERT INTO Report (sent_time, reader_id)
+		INSERT INTO Report (sent_time, reader_id, skipped)
 		VALUES
-			(now(), $1);
+			(now(), $1, FALSE);
+	`, readerId)
+	return tag.RowsAffected(), err
+}
+
+func storeReportLogSkipped(conn *pgx.Conn, readerId int) (int64, error) {
+	tag, err := conn.Exec(`
+		INSERT INTO Report (sent_time, reader_id, skipped)
+		VALUES
+			(now(), $1, TRUE);
 	`, readerId)
 	return tag.RowsAffected(), err
 }

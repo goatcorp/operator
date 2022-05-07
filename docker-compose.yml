@@ -3,6 +3,7 @@ version: "3.1"
 services:
   postgres:
     image: postgres:14.2
+    command: postgres -c stats_temp_directory=/tmp
     restart: always
     environment:
       POSTGRES_DATABASE: operator
