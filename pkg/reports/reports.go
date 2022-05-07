@@ -75,7 +75,7 @@ func (j *ReportJob) Execute() {
 		// Read the next row from the database
 		var readerId int
 		var readerEmail string
-		var readerGithub string
+		var readerGithub *string
 		var readerLastSent *time.Time
 		err := rows.Scan(&readerId, &readerEmail, &readerGithub, &readerLastSent)
 		if err != nil {
