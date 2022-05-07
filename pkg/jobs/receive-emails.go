@@ -138,7 +138,7 @@ func (j *ReceiveEmailsJob) subscribe(email eazye.Email) (*newReader, error) {
 }
 
 func buildSubscriptionTemplate(w io.Writer, interval time.Duration) error {
-	t, err := template.ParseFiles("./templates/confirm-subscription.gohtml")
+	t, err := template.ParseFiles("./templates/confirm-subscribe.gohtml")
 	if err != nil {
 		return err
 	}
