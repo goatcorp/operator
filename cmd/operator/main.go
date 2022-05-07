@@ -19,7 +19,7 @@ func applyMigrations(pool *pgx.ConnPool) {
 		log.Printf("Failed to acquire database connection: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close()
+	defer pool.Release(conn)
 
 	err = db.ApplyMigrations(conn, "./sql")
 	if err != nil {

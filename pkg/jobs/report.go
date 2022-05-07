@@ -57,7 +57,7 @@ func (j *ReportJob) Execute() {
 		log.Printf("Failed to acquire database connection: %v\n", err)
 		return
 	}
-	defer readerConn.Close()
+	defer j.Pool.Release(readerConn)
 
 	rows, err := getReadersToNotify(readerConn)
 	if err != nil {
@@ -73,7 +73,7 @@ func (j *ReportJob) Execute() {
 		log.Printf("Failed to acquire database connection: %v\n", err)
 		return
 	}
-	defer reportConn.Close()
+	defer j.Pool.Release(reportConn)
 
 	for rows.Next() {
 		// Read the next row from the database
