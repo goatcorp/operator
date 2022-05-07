@@ -10,7 +10,7 @@ import (
 	"github.com/google/go-github/v44/github"
 	"github.com/jackc/pgx"
 	"github.com/karashiiro/operator/pkg/outlook"
-	"github.com/karashiiro/operator/pkg/pretty"
+	pretty "github.com/karashiiro/operator/pkg/reports"
 )
 
 type ReportJob struct {
