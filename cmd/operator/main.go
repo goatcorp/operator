@@ -9,7 +9,8 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/karashiiro/operator/pkg/db"
-	"github.com/karashiiro/operator/pkg/jobs"
+	"github.com/karashiiro/operator/pkg/inbox"
+	"github.com/karashiiro/operator/pkg/reports"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/reugn/go-quartz/quartz"
 )
@@ -66,12 +67,12 @@ func main() {
 
 	// Schedule the report job
 	reportTrigger := quartz.NewSimpleTrigger(2 * time.Minute)
-	reportJob := jobs.ReportJob{Pool: pool}
+	reportJob := reports.ReportJob{Pool: pool}
 	sched.ScheduleJob(&reportJob, reportTrigger)
 
 	// Schedule the email-checking job
 	receiveTrigger := quartz.NewSimpleTrigger(time.Minute)
-	receiveJob := jobs.ReceiveEmailsJob{
+	receiveJob := inbox.ReceiveEmailsJob{
 		Pool:   pool,
 		Policy: bluemonday.UGCPolicy(),
 	}
