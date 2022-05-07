@@ -22,7 +22,7 @@ type Plogon struct {
 func BuildTemplate(w io.Writer, plogons []*Plogon) error {
 	t, err := template.New("report.gohtml").Funcs(template.FuncMap{
 		"formatTime": func(t time.Time) string {
-			return t.Format(time.RFC1123)
+			return t.Format(time.RFC822)
 		},
 	}).ParseFiles("./templates/report.gohtml")
 	if err != nil {
