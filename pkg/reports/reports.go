@@ -20,7 +20,11 @@ type Plogon struct {
 }
 
 func BuildTemplate(w io.Writer, plogons []*Plogon) error {
-	t, err := template.ParseFiles("./templates/report.gohtml")
+	t, err := template.New("report.gohtml").Funcs(template.FuncMap{
+		"formatTime": func(t time.Time) string {
+			return t.Format(time.RFC1123)
+		},
+	}).ParseFiles("./templates/report.gohtml")
 	if err != nil {
 		return err
 	}

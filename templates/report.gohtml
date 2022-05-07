@@ -6,6 +6,7 @@
         <th>Title</th>
         <th>Submitter</th>
         <th>Labels</th>
+        <th>Updated</th>
     </tr>
 </thead>
 <tbody>
@@ -18,6 +19,7 @@
             <span style="color: #{{.Color}};">{{.Name}}&nbsp;</span>
         {{end}}
         </td>
+        <td>{{formatTime .Updated}}</td>
     </tr>
     {{end}}
 </tbody>
