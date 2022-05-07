@@ -1,5 +1,5 @@
 # Caprine Operator
-Sends emails about things.
+*The* goatcorp email reporting service.
 ![](assets/email.png)
 
 ## Environment variables
