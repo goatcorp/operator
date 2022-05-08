@@ -6,20 +6,53 @@
         <th>Title</th>
         <th>Submitter</th>
         <th>Labels</th>
+        <th>Problems</th>
         <th>Updated</th>
     </tr>
 </thead>
 <tbody>
-    {{range .Plogons}}
+    {{range .PlogonStates}}
     <tr>
-        <td><a href="{{.URL}}">{{.Title}}</a></td>
-        <td>{{.Submitter}}</td>
+        <td><a href="{{.URL}}">{{.Plogon.Title}}</a></td>
+        <td>{{.Plogon.Submitter}}</td>
         <td>
-        {{range .Labels}}
-            <span style="color: #{{.Color}};">{{.Name}}&nbsp;</span>
+        {{range .Plogon.Labels}}
+            <span style="color: #{{.Color}};">{{.Plogon.Name}}&nbsp;</span>
         {{end}}
         </td>
-        <td>{{formatTime .Updated}}</td>
+        <td>
+        {{if .ValidationState.Err != nil}}
+            <span style="color: #F00;">error: {{.ValidationState.Err}}</span>
+        {{else}}
+            <ul>
+                {{if !.ValidationState.Result.NameSet}}
+                    <li><span style="color: #FF0;">No name set</span></li>
+                {{end}}
+                {{if !.ValidationState.Result.InternalNameSet}}
+                    <li><span style="color: #FF0;">No internal name set</span></li>
+                {{end}}
+                {{if !.ValidationState.Result.DescriptionSet}}
+                    <li><span style="color: #FF0;">No description set</span></li>
+                {{end}}
+                {{if !.ValidationState.Result.AssemblyVersionSet}}
+                    <li><span style="color: #FF0;">No version set</span></li>
+                {{end}}
+                {{if !.ValidationState.Result.RepoURLSet}}
+                    <li><span style="color: #FF0;">No repo URL set</span></li>
+                {{end}}
+                {{if !.ValidationState.Result.PunchlineSet}}
+                    <li><span style="color: #FF0;">No punchline set</span></li>
+                {{end}}
+                {{if !.ValidationState.Result.MatchesZipped}}
+                    <li><span style="color: #FF0;">Unzipped and zipped metadata do not match</span></li>
+                {{end}}
+                {{if .ValidationState.Result.Testing && !.ValidationState.Result.TestingHasTaggedTitle}}
+                    <li><span style="color: #FF0;">Testing plugin does not have tagged title</span></li>
+                {{end}}
+            </ul>
+        {{end}}
+        </td>
+        <td>{{formatTime .Plogon.Updated}}</td>
     </tr>
     {{end}}
 </tbody>

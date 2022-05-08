@@ -28,10 +28,22 @@ type PlogonMeta struct {
 	AssemblyVersion        string
 	TestingAssemblyVersion string
 	IsTestingExclusive     bool
-	RepoUrl                string
+	RepoURL                string `json:"RepoUrl"`
 	ApplicableVersion      string
-	ImageUrls              []string
-	IconUrl                string
+	ImageURLs              []string `json:"ImageUrls"`
+	IconURL                string   `json:"IconUrl"`
 	DalamudApiLevel        int
 	LoadPriority           int
+}
+
+type PlogonMetaValidationResult struct {
+	NameSet               bool
+	InternalNameSet       bool
+	DescriptionSet        bool
+	AssemblyVersionSet    bool
+	RepoURLSet            bool
+	PunchlineSet          bool
+	MatchesZipped         bool
+	Testing               bool
+	TestingHasTaggedTitle bool
 }
