@@ -24,8 +24,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sloonz/go-qprintable v0.0.0-20210417175225-715103f9e6eb // indirect
-	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
-	golang.org/x/text v0.3.6 // indirect
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
+	golang.org/x/text v0.3.7 // indirect
 )
 
 require (
@@ -33,5 +33,5 @@ require (
 	github.com/google/go-cmp v0.5.8
 	github.com/google/go-github/v44 v44.0.1-0.20220502191311-417479672f91
 	github.com/google/go-querystring v1.1.0 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+	golang.org/x/crypto v0.0.0-20220507011949-2cf3adece122 // indirect
 )

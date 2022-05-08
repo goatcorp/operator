@@ -2,7 +2,6 @@ package reports
 
 import (
 	"bytes"
-	"fmt"
 	"hash/fnv"
 	"io"
 	"log"
@@ -15,31 +14,16 @@ import (
 	"github.com/karashiiro/operator/pkg/repos/plogons"
 )
 
-type plogonValidationState struct {
-	Result *plogons.PlogonMetaValidationResult
-	Err    error
-}
-
 type ReportJob struct {
 	Pool *pgx.ConnPool
 }
 
 func (j *ReportJob) Execute() {
-	// Retrieve all open pull requests
-	plogonList, plogonPRs, err := plogons.GetPlogons()
+	// Process all open pull requests
+	reportTemplates, err := GetPlogonReportTemplates()
 	if err != nil {
-		log.Printf("Request error: %v\n", err)
+		log.Printf("Failed to retrieve plogons: %v\n", err)
 		return
-	}
-
-	// Get the validation states of all open pull requests
-	plogonValidation := make([]*plogonValidationState, len(plogonList))
-	for i, pr := range plogonPRs {
-		res, err := plogons.ValidatePullRequest(pr)
-		plogonValidation[i] = &plogonValidationState{
-			Result: res,
-			Err:    err,
-		}
 	}
 
 	// Retrieve all of the active report readers
@@ -87,20 +71,18 @@ func (j *ReportJob) Execute() {
 		// Figure out the size of the array we need so we can allocate
 		// it all at once
 		sinceLastEmail := 0
-		for _, p := range plogonList {
-			if ref.IsZero() || p.Updated.After(ref) {
+		for _, rt := range reportTemplates {
+			if ref.IsZero() || rt.Plogon.Updated.After(ref) {
 				sinceLastEmail++
 			}
 		}
 
 		// Filter the stuff
-		plogonsFiltered := make([]*plogons.Plogon, sinceLastEmail)
-		plogonValidationsFiltered := make([]*plogonValidationState, sinceLastEmail)
+		plogonsFiltered := make([]*ReportTemplate, sinceLastEmail)
 		plogonsFilteredIdx := 0
-		for _, p := range plogonList {
-			if ref.IsZero() || p.Updated.After(ref) {
-				plogonsFiltered[plogonsFilteredIdx] = p
-				plogonValidationsFiltered[plogonsFilteredIdx] = plogonValidation[plogonsFilteredIdx]
+		for _, rt := range reportTemplates {
+			if ref.IsZero() || rt.Plogon.Updated.After(ref) {
+				plogonsFiltered[plogonsFilteredIdx] = rt
 				plogonsFilteredIdx++
 			}
 		}
@@ -119,7 +101,7 @@ func (j *ReportJob) Execute() {
 
 		// Send the email
 		var readerMessage bytes.Buffer
-		err = buildTemplate(&readerMessage, plogonsFiltered, plogonValidationsFiltered)
+		err = buildTemplate(&readerMessage, plogonsFiltered)
 		if err != nil {
 			log.Printf("Failed to build template: %v\n", err)
 			continue
@@ -155,17 +137,36 @@ func (j *ReportJob) Key() int {
 	return int(h.Sum32())
 }
 
-type plogonTemplate struct {
-	Plogon          *plogons.Plogon
-	ValidationState *plogonValidationState
-}
-
-func buildTemplate(w io.Writer, plogonList []*plogons.Plogon, plogonValidationList []*plogonValidationState) error {
-	// Validate slice lengths
-	if len(plogonList) != len(plogonValidationList) {
-		return fmt.Errorf("plogon slices are not equal in length")
+func GetPlogonReportTemplates() ([]*ReportTemplate, error) {
+	// Retrieve all open pull requests
+	plogonList, plogonPRs, err := plogons.GetPlogons()
+	if err != nil {
+		return nil, err
 	}
 
+	// Get the validation states of all open pull requests
+	plogonValidation := make([]*ReportPlogonValidationState, len(plogonList))
+	for i, pr := range plogonPRs {
+		res, err := plogons.ValidatePullRequest(pr)
+		plogonValidation[i] = &ReportPlogonValidationState{
+			Result: res,
+			Err:    err,
+		}
+	}
+
+	// Zip the two slices so we can enumerate them together
+	plogonTemplates := make([]*ReportTemplate, len(plogonList))
+	for i, p := range plogonList {
+		plogonTemplates[i] = &ReportTemplate{
+			Plogon:          p,
+			ValidationState: plogonValidation[i],
+		}
+	}
+
+	return plogonTemplates, nil
+}
+
+func buildTemplate(w io.Writer, reportTemplates []*ReportTemplate) error {
 	// Build the HTML template
 	t, err := template.New("report.gohtml").Funcs(template.FuncMap{
 		"formatTime": func(t time.Time) string {
@@ -176,20 +177,11 @@ func buildTemplate(w io.Writer, plogonList []*plogons.Plogon, plogonValidationLi
 		return err
 	}
 
-	// Zip the two slices together so we can enumerate them together
-	plogonTemplates := make([]*plogonTemplate, len(plogonList))
-	for i, p := range plogonList {
-		plogonTemplates[i] = &plogonTemplate{
-			Plogon:          p,
-			ValidationState: plogonValidationList[i],
-		}
-	}
-
 	// Execute the template
 	err = t.Execute(w, struct {
-		PlogonStates []*plogonTemplate
+		PlogonStates []*ReportTemplate
 	}{
-		PlogonStates: plogonTemplates,
+		PlogonStates: reportTemplates,
 	})
 	if err != nil {
 		return err
