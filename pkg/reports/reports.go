@@ -147,6 +147,7 @@ func GetPlogonReportTemplates() ([]*ReportTemplate, error) {
 	// Get the validation states of all open pull requests
 	plogonValidation := make([]*ReportPlogonValidationState, len(plogonList))
 	for i, pr := range plogonPRs {
+		log.Printf("Validating pull request #%d\n", pr.GetNumber())
 		res, err := plogons.ValidatePullRequest(pr)
 		plogonValidation[i] = &ReportPlogonValidationState{
 			Result: res,

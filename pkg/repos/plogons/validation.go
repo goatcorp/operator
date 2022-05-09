@@ -19,7 +19,7 @@ import (
 func ValidatePullRequest(pr *github.PullRequest) (*PlogonMetaValidationResult, error) {
 	res := &PlogonMetaValidationResult{}
 
-	files, preamble, err := downloadGitDiff(pr)
+	files, _, err := downloadGitDiff(pr)
 	if err != nil {
 		return nil, err
 	}
@@ -35,12 +35,19 @@ func ValidatePullRequest(pr *github.PullRequest) (*PlogonMetaValidationResult, e
 	}
 
 	// Check PR title if this PR is targetting testing
-	if strings.Contains(preamble, "testing") {
-		res.Testing = true
+	for _, f := range files {
+		if strings.Contains(f.NewName, "testing") {
+			res.Testing = true
+			break
+		}
 	}
 
-	if res.Testing && strings.HasPrefix(strings.ToLower(pr.GetTitle()), "[testing]") {
-		res.TestingHasTaggedTitle = true
+	tags := getTags(pr.GetTitle())
+	for _, t := range tags {
+		if strings.ToLower(t) == "testing" {
+			res.TestingHasTaggedTitle = true
+			break
+		}
 	}
 
 	// Test basic fields
@@ -84,7 +91,7 @@ func downloadMeta(pr *github.PullRequest, diffFiles []*gitdiff.File) (*PlogonMet
 		return nil, fmt.Errorf("could not find metadata file in pull request")
 	}
 
-	metaFileURL, err := getBaseBranchFileURL(metaFileInfo, pr)
+	metaFileURL, err := getHeadBranchFileURL(metaFileInfo, pr)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +107,14 @@ func downloadMeta(pr *github.PullRequest, diffFiles []*gitdiff.File) (*PlogonMet
 		return nil, err
 	}
 
-	err = json.Unmarshal(metaFileBuf, meta)
+	metaFileData := strings.TrimLeftFunc(string(metaFileBuf), func(r rune) bool {
+		return r != '{'
+	})
+	metaFileData = strings.TrimRightFunc(metaFileData, func(r rune) bool {
+		return r != '}'
+	})
+
+	err = json.Unmarshal([]byte(metaFileData), meta)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +130,7 @@ func downloadZippedMeta(pr *github.PullRequest, diffFiles []*gitdiff.File) (*Plo
 		return nil, fmt.Errorf("could not find zip file in pull request")
 	}
 
-	zipFileURL, err := getBaseBranchFileURL(zipFileInfo, pr)
+	zipFileURL, err := getHeadBranchFileURL(zipFileInfo, pr)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +173,14 @@ func downloadZippedMeta(pr *github.PullRequest, diffFiles []*gitdiff.File) (*Plo
 		return nil, err
 	}
 
-	err = json.Unmarshal(metaFileBuf, meta)
+	metaFileData := strings.TrimLeftFunc(string(metaFileBuf), func(r rune) bool {
+		return r != '{'
+	})
+	metaFileData = strings.TrimRightFunc(metaFileData, func(r rune) bool {
+		return r != '}'
+	})
+
+	err = json.Unmarshal([]byte(metaFileData), meta)
 	if err != nil {
 		return nil, err
 	}
@@ -167,23 +188,51 @@ func downloadZippedMeta(pr *github.PullRequest, diffFiles []*gitdiff.File) (*Plo
 	return meta, nil
 }
 
-func getBaseBranchFileURL(file *gitdiff.File, pr *github.PullRequest) (string, error) {
-	if pr.Base == nil {
-		return "", fmt.Errorf("pull request has nil base branch")
+func getHeadBranchFileURL(file *gitdiff.File, pr *github.PullRequest) (string, error) {
+	if pr.Head == nil {
+		return "", fmt.Errorf("pull request has nil head branch")
 	}
 
-	if pr.Base.Repo == nil {
+	if pr.Head.Repo == nil {
 		return "", fmt.Errorf("pull request branch has nil repo")
 	}
 
-	fileURL, err := url.Parse(pr.Base.Repo.GetHTMLURL())
+	fileURL, err := url.Parse("https://raw.githubusercontent.com")
 	if err != nil {
 		return "", err
 	}
 
-	fileURL.Path = path.Join(fileURL.Path, "tree", pr.Base.GetRef(), strings.TrimLeft(file.NewName, "b/"))
+	fileURL.Path = path.Join(fileURL.Path, pr.Head.Repo.GetFullName(),
+		pr.Head.GetRef(), strings.TrimLeft(file.NewName, "b/"))
 
 	return fileURL.String(), nil
+}
+
+func getTags(title string) []string {
+	if !strings.HasPrefix(title, "[") {
+		return nil
+	}
+
+	tags := make([]string, 0)
+	openPos := 0
+	closeFound := false
+	for i, c := range title {
+		if c == ']' {
+			if !closeFound {
+				tags = append(tags, title[openPos+1:i])
+			}
+
+			closeFound = true
+		} else if c == '[' {
+			if closeFound {
+				closeFound = false
+			}
+
+			openPos = i
+		}
+	}
+
+	return tags
 }
 
 func findZipFile(diffFiles []*gitdiff.File) *gitdiff.File {

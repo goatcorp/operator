@@ -13,41 +13,42 @@
 <tbody>
     {{range .PlogonStates}}
     <tr>
-        <td><a href="{{.URL}}">{{.Plogon.Title}}</a></td>
+        <td><a href="{{.Plogon.URL}}">{{.Plogon.Title}}</a></td>
         <td>{{.Plogon.Submitter}}</td>
         <td>
         {{range .Plogon.Labels}}
-            <span style="color: #{{.Color}};">{{.Plogon.Name}}&nbsp;</span>
+            <span style="color: #{{.Color}};">{{.Name}}&nbsp;</span>
         {{end}}
         </td>
         <td>
-        {{if .ValidationState.Err != nil}}
+        {{if ne .ValidationState.Err nil}}
             <span style="color: #F00;">error: {{.ValidationState.Err}}</span>
         {{else}}
+            {{$validation := .ValidationState.Result}}
             <ul>
-                {{if !.ValidationState.Result.NameSet}}
-                    <li><span style="color: #FF0;">No name set</span></li>
+                {{if not $validation.NameSet}}
+                    <li><span>No name set</span></li>
                 {{end}}
-                {{if !.ValidationState.Result.InternalNameSet}}
-                    <li><span style="color: #FF0;">No internal name set</span></li>
+                {{if not $validation.InternalNameSet}}
+                    <li><span>No internal name set</span></li>
                 {{end}}
-                {{if !.ValidationState.Result.DescriptionSet}}
-                    <li><span style="color: #FF0;">No description set</span></li>
+                {{if not $validation.DescriptionSet}}
+                    <li><span>No description set</span></li>
                 {{end}}
-                {{if !.ValidationState.Result.AssemblyVersionSet}}
-                    <li><span style="color: #FF0;">No version set</span></li>
+                {{if not $validation.AssemblyVersionSet}}
+                    <li><span>No version set</span></li>
                 {{end}}
-                {{if !.ValidationState.Result.RepoURLSet}}
-                    <li><span style="color: #FF0;">No repo URL set</span></li>
+                {{if not $validation.RepoURLSet}}
+                    <li><span>No repo URL set</span></li>
                 {{end}}
-                {{if !.ValidationState.Result.PunchlineSet}}
-                    <li><span style="color: #FF0;">No punchline set</span></li>
+                {{if not $validation.PunchlineSet}}
+                    <li><span>No punchline set</span></li>
                 {{end}}
-                {{if !.ValidationState.Result.MatchesZipped}}
-                    <li><span style="color: #FF0;">Unzipped and zipped metadata do not match</span></li>
+                {{if not $validation.MatchesZipped}}
+                    <li><span>Unzipped and zipped metadata do not match</span></li>
                 {{end}}
-                {{if .ValidationState.Result.Testing && !.ValidationState.Result.TestingHasTaggedTitle}}
-                    <li><span style="color: #FF0;">Testing plugin does not have tagged title</span></li>
+                {{if not $validation.TestingHasTaggedTitle | and $validation.Testing }}
+                    <li><span>Testing plugin does not have tagged title</span></li>
                 {{end}}
             </ul>
         {{end}}
