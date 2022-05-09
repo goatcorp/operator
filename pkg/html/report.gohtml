@@ -6,20 +6,54 @@
         <th>Title</th>
         <th>Submitter</th>
         <th>Labels</th>
+        <th>Problems</th>
         <th>Updated</th>
     </tr>
 </thead>
 <tbody>
-    {{range .Plogons}}
+    {{range .PlogonStates}}
     <tr>
-        <td><a href="{{.URL}}">{{.Title}}</a></td>
-        <td>{{.Submitter}}</td>
+        <td><a href="{{.Plogon.URL}}">{{.Plogon.Title}}</a></td>
+        <td>{{.Plogon.Submitter}}</td>
         <td>
-        {{range .Labels}}
+        {{range .Plogon.Labels}}
             <span style="color: #{{.Color}};">{{.Name}}&nbsp;</span>
         {{end}}
         </td>
-        <td>{{formatTime .Updated}}</td>
+        <td>
+        {{if ne .ValidationState.Err nil}}
+            <span style="color: #F00;">error: {{.ValidationState.Err}}</span>
+        {{else}}
+            {{$validation := .ValidationState.Result}}
+            <ul>
+                {{if not $validation.NameSet}}
+                    <li><span>No name set</span></li>
+                {{end}}
+                {{if not $validation.InternalNameSet}}
+                    <li><span>No internal name set</span></li>
+                {{end}}
+                {{if not $validation.DescriptionSet}}
+                    <li><span>No description set</span></li>
+                {{end}}
+                {{if not $validation.AssemblyVersionSet}}
+                    <li><span>No version set</span></li>
+                {{end}}
+                {{if not $validation.RepoURLSet}}
+                    <li><span>No repo URL set</span></li>
+                {{end}}
+                {{if not $validation.PunchlineSet}}
+                    <li><span>No punchline set</span></li>
+                {{end}}
+                {{if not $validation.MatchesZipped}}
+                    <li><span>Unzipped and zipped metadata do not match</span></li>
+                {{end}}
+                {{if not $validation.TestingHasTaggedTitle | and $validation.Testing }}
+                    <li><span>Testing plugin does not have tagged title</span></li>
+                {{end}}
+            </ul>
+        {{end}}
+        </td>
+        <td>{{formatTime .Plogon.Updated}}</td>
     </tr>
     {{end}}
 </tbody>

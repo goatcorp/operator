@@ -2,14 +2,16 @@ package reports
 
 import (
 	"bytes"
-	"context"
 	"hash/fnv"
+	"io"
 	"log"
+	"text/template"
 	"time"
 
-	"github.com/google/go-github/v44/github"
 	"github.com/jackc/pgx"
+	"github.com/karashiiro/operator/pkg/html"
 	"github.com/karashiiro/operator/pkg/outlook"
+	"github.com/karashiiro/operator/pkg/repos/plogons"
 )
 
 type ReportJob struct {
@@ -17,34 +19,11 @@ type ReportJob struct {
 }
 
 func (j *ReportJob) Execute() {
-	// Retrieve all open pull requests
-	client := github.NewClient(nil)
-	plogons, _, err := client.PullRequests.List(context.Background(), "goatcorp", "DalamudPlugins", &github.PullRequestListOptions{
-		State: "open",
-	})
+	// Process all open pull requests
+	reportTemplates, err := GetPlogonReportTemplates()
 	if err != nil {
-		log.Printf("Request error: %v\n", err)
+		log.Printf("Failed to retrieve plogons: %v\n", err)
 		return
-	}
-
-	// Make the plogons :dognosepretty:
-	plogonsPretty := make([]*Plogon, len(plogons))
-	for i, plogon := range plogons {
-		labels := make([]*PlogonLabel, len(plogon.Labels))
-		for j, label := range plogon.Labels {
-			labels[j] = &PlogonLabel{
-				Name:  label.GetName(),
-				Color: label.GetColor(),
-			}
-		}
-
-		plogonsPretty[i] = &Plogon{
-			Title:     plogon.GetTitle(),
-			URL:       plogon.GetHTMLURL(),
-			Labels:    labels,
-			Submitter: plogon.User.GetLogin(),
-			Updated:   plogon.GetUpdatedAt(),
-		}
 	}
 
 	// Retrieve all of the active report readers
@@ -92,18 +71,18 @@ func (j *ReportJob) Execute() {
 		// Figure out the size of the array we need so we can allocate
 		// it all at once
 		sinceLastEmail := 0
-		for _, p := range plogonsPretty {
-			if ref.IsZero() || p.Updated.After(ref) {
+		for _, rt := range reportTemplates {
+			if ref.IsZero() || rt.Plogon.Updated.After(ref) {
 				sinceLastEmail++
 			}
 		}
 
 		// Filter the stuff
-		plogonsFiltered := make([]*Plogon, sinceLastEmail)
+		plogonsFiltered := make([]*ReportTemplate, sinceLastEmail)
 		plogonsFilteredIdx := 0
-		for _, p := range plogonsPretty {
-			if ref.IsZero() || p.Updated.After(ref) {
-				plogonsFiltered[plogonsFilteredIdx] = p
+		for _, rt := range reportTemplates {
+			if ref.IsZero() || rt.Plogon.Updated.After(ref) {
+				plogonsFiltered[plogonsFilteredIdx] = rt
 				plogonsFilteredIdx++
 			}
 		}
@@ -122,7 +101,7 @@ func (j *ReportJob) Execute() {
 
 		// Send the email
 		var readerMessage bytes.Buffer
-		err = BuildTemplate(&readerMessage, plogonsFiltered)
+		err = buildTemplate(&readerMessage, plogonsFiltered)
 		if err != nil {
 			log.Printf("Failed to build template: %v\n", err)
 			continue
@@ -156,6 +135,60 @@ func (j *ReportJob) Key() int {
 	h := fnv.New32a()
 	h.Write([]byte(j.Description()))
 	return int(h.Sum32())
+}
+
+func GetPlogonReportTemplates() ([]*ReportTemplate, error) {
+	// Retrieve all open pull requests
+	plogonList, plogonPRs, err := plogons.GetPlogons()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the validation states of all open pull requests
+	plogonValidation := make([]*ReportPlogonValidationState, len(plogonList))
+	for i, pr := range plogonPRs {
+		log.Printf("Validating pull request #%d\n", pr.GetNumber())
+		res, err := plogons.ValidatePullRequest(pr)
+		plogonValidation[i] = &ReportPlogonValidationState{
+			Result: res,
+			Err:    err,
+		}
+	}
+
+	// Zip the two slices so we can enumerate them together
+	plogonTemplates := make([]*ReportTemplate, len(plogonList))
+	for i, p := range plogonList {
+		plogonTemplates[i] = &ReportTemplate{
+			Plogon:          p,
+			ValidationState: plogonValidation[i],
+		}
+	}
+
+	return plogonTemplates, nil
+}
+
+func buildTemplate(w io.Writer, reportTemplates []*ReportTemplate) error {
+	// Build the HTML template
+	t, err := template.New("report.gohtml").Funcs(template.FuncMap{
+		"formatTime": func(t time.Time) string {
+			return t.Format(time.RFC822)
+		},
+	}).ParseFS(html.Files, "report.gohtml")
+	if err != nil {
+		return err
+	}
+
+	// Execute the template
+	err = t.Execute(w, struct {
+		PlogonStates []*ReportTemplate
+	}{
+		PlogonStates: reportTemplates,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getReadersToNotify(conn *pgx.Conn) (*pgx.Rows, error) {
