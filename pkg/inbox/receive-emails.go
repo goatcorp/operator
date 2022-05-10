@@ -17,19 +17,18 @@ type ReceiveEmailsJob struct {
 }
 
 func (j *ReceiveEmailsJob) Execute() {
-	auth := eazye.MailboxInfo{
-		Host:   os.Getenv("OPERATOR_IMAP_SERVER"),
-		TLS:    true,
-		User:   os.Getenv("OPERATOR_EMAIL"),
-		Pwd:    os.Getenv("OPERATOR_PASSWORD"),
-		Folder: os.Getenv("OPERATOR_INBOX"),
-	}
-
 	log.Println("Fetching unread operator emails")
-	emails, err := eazye.GetUnread(auth, true, false)
+	emails, err := getEmails(os.Getenv("OPERATOR_INBOX"))
 	if err != nil {
 		log.Printf("Failed to get incoming emails: %v\n", err)
 	}
+
+	junkEmails, err := getEmails(os.Getenv("OPERATOR_JUNK"))
+	if err != nil {
+		log.Printf("Failed to get incoming junk emails: %v\n", err)
+	}
+
+	emails = append(emails, junkEmails...)
 
 	newReaders := make([]*ReaderInfo, 0)
 	updatedReaders := make([]*ReaderInfo, 0)
@@ -107,4 +106,21 @@ func (j *ReceiveEmailsJob) Key() int {
 	h := fnv.New32a()
 	h.Write([]byte(j.Description()))
 	return int(h.Sum32())
+}
+
+func getEmails(mailbox string) ([]eazye.Email, error) {
+	auth := eazye.MailboxInfo{
+		Host:   os.Getenv("OPERATOR_IMAP_SERVER"),
+		TLS:    true,
+		User:   os.Getenv("OPERATOR_EMAIL"),
+		Pwd:    os.Getenv("OPERATOR_PASSWORD"),
+		Folder: mailbox,
+	}
+
+	emails, err := eazye.GetUnread(auth, true, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return emails, nil
 }
