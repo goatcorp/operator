@@ -25,6 +25,7 @@ func (j *ReceiveEmailsJob) Execute() {
 		Folder: os.Getenv("OPERATOR_INBOX"),
 	}
 
+	log.Println("Fetching unread operator emails")
 	emails, err := eazye.GetUnread(auth, true, false)
 	if err != nil {
 		log.Printf("Failed to get incoming emails: %v\n", err)
@@ -50,6 +51,7 @@ func (j *ReceiveEmailsJob) Execute() {
 				continue
 			}
 
+			log.Println("Found new subscription email, adding to list")
 			newReaders = append(newReaders, r)
 		} else if strings.HasPrefix(subjectCleaned, "[op] update") {
 			r, err := ParseBody(email, *j.Policy)
@@ -58,13 +60,16 @@ func (j *ReceiveEmailsJob) Execute() {
 				continue
 			}
 
+			log.Println("Found new information update email, adding to list")
 			updatedReaders = append(updatedReaders, r)
 		} else if strings.HasPrefix(subjectCleaned, "[op] unsubscribe") {
+			log.Println("Found new unsubscribe email, adding to list")
 			unsubscribers = append(unsubscribers, email.From.Address)
 		}
 	}
 
 	if len(newReaders) == 0 && len(updatedReaders) == 0 && len(unsubscribers) == 0 {
+		log.Println("No unread operator emails found")
 		return
 	}
 
@@ -77,16 +82,19 @@ func (j *ReceiveEmailsJob) Execute() {
 
 	// Save new readers to the database
 	if len(newReaders) > 0 {
+		log.Println("Processing new subscribers")
 		saveSubscribers(readerConn, newReaders)
 	}
 
 	// Persist reader updates to the database
 	if len(updatedReaders) > 0 {
+		log.Println("Processing information update requests")
 		saveUpdatedInfo(readerConn, updatedReaders)
 	}
 
 	// Delete unsubscribing readers from the database
 	if len(unsubscribers) > 0 {
+		log.Println("Processing unsubscribers")
 		deleteUnsubscribers(readerConn, unsubscribers)
 	}
 }
