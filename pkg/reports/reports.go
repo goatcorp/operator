@@ -19,6 +19,8 @@ type ReportJob struct {
 }
 
 func (j *ReportJob) Execute() {
+	log.Println("Checking plugin pull requests and subscribers")
+
 	// Process all open pull requests
 	reportTemplates, err := GetPlogonReportTemplates()
 	if err != nil {
