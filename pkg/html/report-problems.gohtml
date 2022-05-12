@@ -1,0 +1,34 @@
+<ul>
+    {{if not .NameSet}}
+        <li><span>No name set</span></li>
+    {{end}}
+    {{if not .InternalNameSet}}
+        <li><span>No internal name set</span></li>
+    {{end}}
+    {{if not .DescriptionSet}}
+        <li><span>No description set</span></li>
+    {{end}}
+    {{if not .AssemblyVersionSet}}
+        <li><span>No version set</span></li>
+    {{end}}
+    {{if not .RepoURLSet}}
+        <li><span>No repo URL set</span></li>
+    {{end}}
+    {{if not .PunchlineSet}}
+        <li><span>No punchline set</span></li>
+    {{end}}
+    {{if not .MatchesZipped}}
+        <li><span>Unzipped and zipped metadata do not match</span></li>
+    {{end}}
+    {{if not .TestingHasTaggedTitle | and .Testing}}
+        <li><span>Testing plugin does not have tagged title</span></li>
+    {{end}}
+    {{if not .IconSet | and .IconExists}}
+        <li><span>Icon URL does not point to an existing image</span></li>
+    {{end}}
+    {{range $i, $image := .Images}}
+        {{if not $image.ImageExists}}
+            <li><span>Image {{$i}} does not point to an existing image</span></li>
+        {{end}}
+    {{end}}
+</ul>

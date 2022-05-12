@@ -17,7 +17,7 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 		"formatTime": func(t time.Time) string {
 			return t.Format(time.RFC822)
 		},
-	}).ParseFS(html.Files, "report.gohtml")
+	}).ParseFS(html.Files, "report.gohtml", "report-problems.gohtml")
 	if err != nil {
 		w.Write([]byte(fmt.Sprintf("%v\n", err)))
 		return

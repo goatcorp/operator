@@ -24,33 +24,7 @@
         {{if ne .ValidationState.Err nil}}
             <span style="color: #F00;">error: {{.ValidationState.Err}}</span>
         {{else}}
-            {{$validation := .ValidationState.Result}}
-            <ul>
-                {{if not $validation.NameSet}}
-                    <li><span>No name set</span></li>
-                {{end}}
-                {{if not $validation.InternalNameSet}}
-                    <li><span>No internal name set</span></li>
-                {{end}}
-                {{if not $validation.DescriptionSet}}
-                    <li><span>No description set</span></li>
-                {{end}}
-                {{if not $validation.AssemblyVersionSet}}
-                    <li><span>No version set</span></li>
-                {{end}}
-                {{if not $validation.RepoURLSet}}
-                    <li><span>No repo URL set</span></li>
-                {{end}}
-                {{if not $validation.PunchlineSet}}
-                    <li><span>No punchline set</span></li>
-                {{end}}
-                {{if not $validation.MatchesZipped}}
-                    <li><span>Unzipped and zipped metadata do not match</span></li>
-                {{end}}
-                {{if not $validation.TestingHasTaggedTitle | and $validation.Testing }}
-                    <li><span>Testing plugin does not have tagged title</span></li>
-                {{end}}
-            </ul>
+            {{template "report-problems.gohtml" .ValidationState.Result}}
         {{end}}
         </td>
         <td>{{formatTime .Plogon.Updated}}</td>

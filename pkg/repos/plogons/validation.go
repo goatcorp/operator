@@ -75,6 +75,36 @@ func ValidatePullRequest(pr *github.PullRequest) (*PlogonMetaValidationResult, e
 		res.PunchlineSet = true
 	}
 
+	// Check that the icon exists if specified
+	if uncompressedMeta.IconURL != "" {
+		res.IconSet = true
+
+		exists := true
+		r, err := http.Head(uncompressedMeta.IconURL)
+		if err != nil {
+			exists = false
+		} else {
+			exists = r.StatusCode == 200
+		}
+
+		res.IconExists = exists
+	}
+
+	// Check that the images exist if specified
+	for _, url := range uncompressedMeta.ImageURLs {
+		exists := true
+		r, err := http.Head(url)
+		if err != nil {
+			exists = false
+		} else {
+			exists = r.StatusCode == 200
+		}
+
+		res.Images = append(res.Images, &PlogonMetaImageValidationResult{
+			ImageExists: exists,
+		})
+	}
+
 	// Check that the two metadata files are equivalent
 	if cmp.Equal(*uncompressedMeta, *compressedMeta) {
 		res.MatchesZipped = true

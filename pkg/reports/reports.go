@@ -175,7 +175,7 @@ func buildTemplate(w io.Writer, reportTemplates []*ReportTemplate) error {
 		"formatTime": func(t time.Time) string {
 			return t.Format(time.RFC822)
 		},
-	}).ParseFS(html.Files, "report.gohtml")
+	}).ParseFS(html.Files, "report.gohtml", "report-problems.gohtml")
 	if err != nil {
 		return err
 	}
