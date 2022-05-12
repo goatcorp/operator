@@ -36,6 +36,10 @@ type PlogonMeta struct {
 	LoadPriority           int
 }
 
+type PlogonMetaImageValidationResult struct {
+	ImageExists bool
+}
+
 type PlogonMetaValidationResult struct {
 	NameSet               bool
 	InternalNameSet       bool
@@ -46,4 +50,7 @@ type PlogonMetaValidationResult struct {
 	MatchesZipped         bool
 	Testing               bool
 	TestingHasTaggedTitle bool
+	IconSet               bool
+	IconExists            bool
+	Images                []*PlogonMetaImageValidationResult
 }
