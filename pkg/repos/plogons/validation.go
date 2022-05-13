@@ -92,16 +92,18 @@ func ValidatePullRequest(pr *github.PullRequest) (*PlogonMetaValidationResult, e
 
 	// Check that the images exist if specified
 	for _, url := range uncompressedMeta.ImageURLs {
-		exists := true
-		r, err := http.Head(url)
-		if err != nil {
-			exists = false
-		} else {
-			exists = r.StatusCode == 200
+		existsOrEmpty := true
+		if url != "" {
+			r, err := http.Head(url)
+			if err != nil {
+				existsOrEmpty = false
+			} else {
+				existsOrEmpty = r.StatusCode == 200
+			}
 		}
 
 		res.Images = append(res.Images, &PlogonMetaImageValidationResult{
-			ImageExists: exists,
+			ImageExistsOrEmpty: existsOrEmpty,
 		})
 	}
 

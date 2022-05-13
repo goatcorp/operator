@@ -27,7 +27,7 @@
         <li><span>Icon URL does not point to an existing image</span></li>
     {{end}}
     {{range $i, $image := .Images}}
-        {{if not $image.ImageExists}}
+        {{if not $image.ImageExistsOrEmpty}}
             <li><span>Image {{$i}} does not point to an existing image</span></li>
         {{end}}
     {{end}}
