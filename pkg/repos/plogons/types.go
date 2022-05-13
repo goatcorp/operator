@@ -37,7 +37,7 @@ type PlogonMeta struct {
 }
 
 type PlogonMetaImageValidationResult struct {
-	ImageExists bool
+	ImageExistsOrEmpty bool
 }
 
 type PlogonMetaValidationResult struct {
