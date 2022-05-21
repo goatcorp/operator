@@ -32,7 +32,7 @@ type PlogonMeta struct {
 	ApplicableVersion      string
 	ImageURLs              []string `json:"ImageUrls"`
 	IconURL                string   `json:"IconUrl"`
-	DalamudApiLevel        int
+	DalamudAPILevel        int      `json:"DalamudApiLevel"`
 	LoadPriority           int
 }
 
@@ -45,6 +45,7 @@ type PlogonMetaValidationResult struct {
 	InternalNameSet       bool
 	DescriptionSet        bool
 	AssemblyVersionSet    bool
+	DalamudAPILevelSet    bool
 	RepoURLSet            bool
 	PunchlineSet          bool
 	MatchesZipped         bool

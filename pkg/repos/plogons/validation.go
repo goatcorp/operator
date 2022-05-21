@@ -67,6 +67,10 @@ func ValidatePullRequest(pr *github.PullRequest) (*PlogonMetaValidationResult, e
 		res.AssemblyVersionSet = true
 	}
 
+	if uncompressedMeta.DalamudAPILevel != 0 {
+		res.DalamudAPILevelSet = true
+	}
+
 	if uncompressedMeta.RepoURL != "" {
 		res.RepoURLSet = true
 	}
