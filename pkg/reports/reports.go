@@ -21,13 +21,6 @@ type ReportJob struct {
 func (j *ReportJob) Execute() {
 	log.Println("Checking plugin pull requests and subscribers")
 
-	// Process all open pull requests
-	reportTemplates, err := GetPlogonReportTemplates()
-	if err != nil {
-		log.Printf("Failed to retrieve plogons: %v\n", err)
-		return
-	}
-
 	// Retrieve all of the active report readers
 	readerConn, err := j.Pool.Acquire()
 	if err != nil {
@@ -52,7 +45,17 @@ func (j *ReportJob) Execute() {
 	}
 	defer j.Pool.Release(reportConn)
 
+	var reportTemplates []*ReportTemplate
 	for rows.Next() {
+		// Process all open pull requests
+		if reportTemplates == nil {
+			reportTemplates, err = GetPlogonReportTemplates()
+			if err != nil {
+				log.Printf("Failed to retrieve plogons: %v\n", err)
+				return
+			}
+		}
+
 		// Read the next row from the database
 		var readerId int
 		var readerEmail string
