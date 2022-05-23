@@ -27,7 +27,7 @@
         <li><span>Testing plugin does not have tagged title</span></li>
     {{end}}
     {{if not .IconSet}}
-        <li><span>No icon set</span></li>
+        <li><span>No icon set in metadata (may exist regardless)</span></li>
     {{end}}
     {{if not .IconSet | and .IconExists}}
         <li><span>Icon URL does not point to an existing image</span></li>
