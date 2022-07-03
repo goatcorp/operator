@@ -1,14 +1,16 @@
-#build stage
-FROM golang:alpine AS builder
-RUN apk add --no-cache git
+# Build stage
+FROM golang:1.18-alpine AS builder
 WORKDIR /go/src/app
-COPY . .
-RUN go get -d -v ./...
-RUN go build -o /go/bin/app -v ./cmd/operator
+RUN apk add --no-cache git
 
-#final stage
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-COPY --from=builder /go/bin/app /app
+# Setup dependencies
+COPY go.mod go.sum /go/src/app/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go mod download
+COPY ./ /go/src/app/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -v -o /go/src/app/operator ./cmd/operator
+
+# Run stage
+FROM gcr.io/distroless/static:nonroot
+COPY --from=builder /go/src/app/operator /app
+LABEL Name=operator
 ENTRYPOINT /app
-LABEL Name=operator Version=1.0.0
