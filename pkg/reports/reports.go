@@ -138,7 +138,12 @@ func (j *ReportJob) Description() string {
 
 func (j *ReportJob) Key() int {
 	h := fnv.New32a()
-	h.Write([]byte(j.Description()))
+	_, err := h.Write([]byte(j.Description()))
+	if err != nil {
+		log.Println(err)
+		return -1
+	}
+
 	return int(h.Sum32())
 }
 

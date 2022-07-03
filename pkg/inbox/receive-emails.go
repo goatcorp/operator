@@ -104,7 +104,12 @@ func (j *ReceiveEmailsJob) Description() string {
 
 func (j *ReceiveEmailsJob) Key() int {
 	h := fnv.New32a()
-	h.Write([]byte(j.Description()))
+	_, err := h.Write([]byte(j.Description()))
+	if err != nil {
+		log.Println(err)
+		return -1
+	}
+
 	return int(h.Sum32())
 }
 

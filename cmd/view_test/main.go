@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"text/template"
 	"time"
@@ -19,13 +20,21 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}).ParseFS(html.Files, "report.gohtml", "report-problems.gohtml")
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("%v\n", err)))
+		_, err := w.Write([]byte(fmt.Sprintf("%v\n", err)))
+		if err != nil {
+			log.Println(err)
+		}
+
 		return
 	}
 
 	reportTemplates, err := reports.GetPlogonReportTemplates()
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("%v\n", err)))
+		_, err := w.Write([]byte(fmt.Sprintf("%v\n", err)))
+		if err != nil {
+			log.Println(err)
+		}
+
 		return
 	}
 
@@ -35,7 +44,11 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 		PlogonStates: reportTemplates,
 	})
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("%v\n", err)))
+		_, err := w.Write([]byte(fmt.Sprintf("%v\n", err)))
+		if err != nil {
+			log.Println(err)
+		}
+
 		return
 	}
 }
